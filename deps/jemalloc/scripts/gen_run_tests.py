@@ -14,10 +14,7 @@ nparallel = cpu_count() * 2
 
 uname = uname()[0]
 
-if "BSD" in uname:
-    make_cmd = 'gmake'
-else:
-    make_cmd = 'make'
+make_cmd = 'gmake' if "BSD" in uname else 'make'
 
 def powerset(items):
     result = []

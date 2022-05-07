@@ -82,7 +82,7 @@ def format_job(combination):
       'percpu_arena:percpu' in malloc_conf or 'background_thread:true' \
       in malloc_conf):
         return ""
-    if len(malloc_conf) > 0:
+    if malloc_conf:
         configure_flags.append('--with-malloc-conf=' + ",".join(malloc_conf))
 
     # Filter out an unsupported configuration - heap profiling on OS X.
@@ -90,9 +90,8 @@ def format_job(combination):
         return ""
 
     # We get some spurious errors when -Warray-bounds is enabled.
-    env_string = ('{} COMPILER_FLAGS="{}" CONFIGURE_FLAGS="{}" '
-	'EXTRA_CFLAGS="-Werror -Wno-array-bounds"').format(
-        compilers, " ".join(compiler_flags), " ".join(configure_flags))
+    env_string = f'{compilers} COMPILER_FLAGS="{" ".join(compiler_flags)}" CONFIGURE_FLAGS="{" ".join(configure_flags)}" EXTRA_CFLAGS="-Werror -Wno-array-bounds"'
+
 
     job = ""
     job += '    - os: %s\n' % os

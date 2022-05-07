@@ -78,9 +78,7 @@ class KeySpec(object):
 
     def struct_code(self):
         def _flags_code():
-            s = ""
-            for flag in self.spec.get("flags", []):
-                s += "CMD_KEY_%s|" % flag
+            s = "".join(f"CMD_KEY_{flag}|" for flag in self.spec.get("flags", []))
             return s[:-1] if s else 0
 
         def _begin_search_code():
@@ -96,7 +94,7 @@ class KeySpec(object):
             elif "unknown" in self.spec["begin_search"]:
                 return "KSPEC_BS_UNKNOWN,{{0}}"
             else:
-                print("Invalid begin_search! value=%s" % self.spec["begin_search"])
+                print(f'Invalid begin_search! value={self.spec["begin_search"]}')
                 exit(1)
 
         def _find_keys_code():
@@ -115,7 +113,7 @@ class KeySpec(object):
             elif "unknown" in self.spec["find_keys"]:
                 return "KSPEC_FK_UNKNOWN,{{0}}"
             else:
-                print("Invalid find_keys! value=%s" % self.spec["find_keys"])
+                print(f'Invalid find_keys! value={self.spec["find_keys"]}')
                 exit(1)
 
         return "%s,%s,%s" % (
@@ -134,18 +132,20 @@ class Argument(object):
         self.subargs = []
         self.subargs_name = None
         if self.type in ["oneof", "block"]:
-            for subdesc in self.desc["arguments"]:
-                self.subargs.append(Argument(self.fullname(), subdesc))
+            self.subargs.extend(
+                Argument(self.fullname(), subdesc)
+                for subdesc in self.desc["arguments"]
+            )
 
     def fullname(self):
-        return ("%s %s" % (self.parent_name, self.name)).replace("-", "_")
+        return f"{self.parent_name} {self.name}".replace("-", "_")
 
     def struct_name(self):
-        return "%s_Arg" % (self.fullname().replace(" ", "_"))
+        return f'{self.fullname().replace(" ", "_")}_Arg'
 
     def subarg_table_name(self):
         assert self.subargs
-        return "%s_Subargs" % (self.fullname().replace(" ", "_"))
+        return f'{self.fullname().replace(" ", "_")}_Subargs'
 
     def struct_code(self):
         """
@@ -196,49 +196,51 @@ class Command(object):
         self.desc = desc
         self.group = self.desc["group"]
         self.subcommands = []
-        self.args = []
-        for arg_desc in self.desc.get("arguments", []):
-            self.args.append(Argument(self.fullname(), arg_desc))
+        self.args = [
+            Argument(self.fullname(), arg_desc)
+            for arg_desc in self.desc.get("arguments", [])
+        ]
 
     def fullname(self):
         return self.name.replace("-", "_").replace(":", "")
 
     def return_types_table_name(self):
-        return "%s_ReturnInfo" % self.fullname().replace(" ", "_")
+        return f'{self.fullname().replace(" ", "_")}_ReturnInfo'
 
     def subcommand_table_name(self):
         assert self.subcommands
-        return "%s_Subcommands" % self.name
+        return f"{self.name}_Subcommands"
 
     def history_table_name(self):
-        return "%s_History" % (self.fullname().replace(" ", "_"))
+        return f'{self.fullname().replace(" ", "_")}_History'
 
     def hints_table_name(self):
-        return "%s_Hints" % (self.fullname().replace(" ", "_"))
+        return f'{self.fullname().replace(" ", "_")}_Hints'
 
     def arg_table_name(self):
-        return "%s_Args" % (self.fullname().replace(" ", "_"))
+        return f'{self.fullname().replace(" ", "_")}_Args'
 
     def struct_name(self):
-        return "%s_Command" % (self.fullname().replace(" ", "_"))
+        return f'{self.fullname().replace(" ", "_")}_Command'
 
     def history_code(self):
-        if not self.desc.get("history"):
-            return ""
-        s = ""
-        for tupl in self.desc["history"]:
-            s += "{\"%s\",\"%s\"},\n" % (tupl[0], tupl[1])
-        s += "{0}"
-        return s
+        return (
+            "".join(
+                "{\"%s\",\"%s\"},\n" % (tupl[0], tupl[1])
+                for tupl in self.desc["history"]
+            )
+            + "{0}"
+            if self.desc.get("history")
+            else ""
+        )
 
     def hints_code(self):
-        if not self.desc.get("hints"):
-            return ""
-        s = ""
-        for hint in self.desc["hints"].split(' '):
-            s += "\"%s\",\n" % hint
-        s += "NULL"
-        return s
+        return (
+            "".join("\"%s\",\n" % hint for hint in self.desc["hints"].split(' '))
+            + "NULL"
+            if self.desc.get("hints")
+            else ""
+        )
 
     def struct_code(self):
         """
@@ -246,27 +248,26 @@ class Command(object):
         "set","Set the string value of a key","O(1)","1.0.0",CMD_DOC_NONE,NULL,NULL,COMMAND_GROUP_STRING,SET_History,SET_Hints,setCommand,-3,"write denyoom @string",{{"write read",KSPEC_BS_INDEX,.bs.index={1},KSPEC_FK_RANGE,.fk.range={0,1,0}}},.args=SET_Args
         """
         def _flags_code():
-            s = ""
-            for flag in self.desc.get("command_flags", []):
-                s += "CMD_%s|" % flag
+            s = "".join(f"CMD_{flag}|" for flag in self.desc.get("command_flags", []))
             return s[:-1] if s else 0
 
         def _acl_categories_code():
-            s = ""
-            for cat in self.desc.get("acl_categories", []):
-                s += "ACL_CATEGORY_%s|" % cat
+            s = "".join(
+                f"ACL_CATEGORY_{cat}|" for cat in self.desc.get("acl_categories", [])
+            )
+
             return s[:-1] if s else 0
 
         def _doc_flags_code():
-            s = ""
-            for flag in self.desc.get("doc_flags", []):
-                s += "CMD_DOC_%s|" % flag
+            s = "".join(f"CMD_DOC_{flag}|" for flag in self.desc.get("doc_flags", []))
             return s[:-1] if s else "CMD_DOC_NONE"
 
         def _key_specs_code():
-            s = ""
-            for spec in self.desc.get("key_specs", []):
-                s += "{%s}," % KeySpec(spec).struct_code()
+            s = "".join(
+                "{%s}," % KeySpec(spec).struct_code()
+                for spec in self.desc.get("key_specs", [])
+            )
+
             return s[:-1]
 
         s = "\"%s\",%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%s,%s," % (
@@ -317,8 +318,7 @@ class Command(object):
         f.write("/********** %s ********************/\n\n" % self.fullname())
 
         f.write("/* %s history */\n" % self.fullname())
-        code = self.history_code()
-        if code:
+        if code := self.history_code():
             f.write("commandHistory %s[] = {\n" % self.history_table_name())
             f.write("%s\n" % code)
             f.write("};\n\n")
@@ -326,8 +326,7 @@ class Command(object):
             f.write("#define %s NULL\n\n" % self.history_table_name())
 
         f.write("/* %s hints */\n" % self.fullname())
-        code = self.hints_code()
-        if code:
+        if code := self.hints_code():
             f.write("const char *%s[] = {\n" % self.hints_table_name())
             f.write("%s\n" % code)
             f.write("};\n\n")
@@ -352,7 +351,7 @@ class Subcommand(Command):
         super(Subcommand, self).__init__(name, desc)
 
     def fullname(self):
-        return "%s %s" % (self.container_name, self.name.replace("-", "_").replace(":", ""))
+        return f'{self.container_name} {self.name.replace("-", "_").replace(":", "")}'
 
 
 def create_command(name, desc):
@@ -367,11 +366,14 @@ def create_command(name, desc):
 # MAIN
 
 # Figure out where the sources are
-srcdir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../src")
+srcdir = os.path.abspath(
+    f"{os.path.dirname(os.path.abspath(__file__))}/../src"
+)
+
 
 # Create all command objects
 print("Processing json files...")
-for filename in glob.glob('%s/commands/*.json' % srcdir):
+for filename in glob.glob(f'{srcdir}/commands/*.json'):
     with open(filename,"r") as f:
         d = json.load(f)
         for name, desc in d.items():
@@ -389,31 +391,31 @@ for command in commands.values():
         command.subcommands.append(subcommand)
 
 print("Generating commands.c...")
-with open("%s/commands.c" % srcdir,"w") as f:
-    f.write("/* Automatically generated by %s, do not edit. */\n\n" % os.path.basename(__file__))
-    f.write("#include \"server.h\"\n")
-    f.write(
-"""
+with open(f"{srcdir}/commands.c", "w") as f:
+        f.write("/* Automatically generated by %s, do not edit. */\n\n" % os.path.basename(__file__))
+        f.write("#include \"server.h\"\n")
+        f.write(
+    """
 /* We have fabulous commands from
  * the fantastic
  * Redis Command Table! */\n
 """
-    )
+        )
 
-    command_list = sorted(commands.values(), key=lambda cmd: (cmd.group, cmd.name))
-    for command in command_list:
-        command.write_internal_structs(f)
+        command_list = sorted(commands.values(), key=lambda cmd: (cmd.group, cmd.name))
+        for command in command_list:
+            command.write_internal_structs(f)
 
-    f.write("/* Main command table */\n")
-    f.write("struct redisCommand redisCommandTable[] = {\n")
-    curr_group = None
-    for command in command_list:
-        if curr_group != command.group:
-            curr_group = command.group
-            f.write("/* %s */\n" % curr_group)
-        f.write("{%s},\n" % command.struct_code())
-    f.write("{0}\n")
-    f.write("};\n")
+        f.write("/* Main command table */\n")
+        f.write("struct redisCommand redisCommandTable[] = {\n")
+        curr_group = None
+        for command in command_list:
+            if curr_group != command.group:
+                curr_group = command.group
+                f.write("/* %s */\n" % curr_group)
+            f.write("{%s},\n" % command.struct_code())
+        f.write("{0}\n")
+        f.write("};\n")
 
 print("All done, exiting.")
 
